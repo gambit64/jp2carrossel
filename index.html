@@ -7,236 +7,227 @@
     #mapa {
       position: relative;
       width: 950px;
-      height: 550px;
-      border: 1px solid #ccc;
-      margin-bottom: 12px;
-      background: url('https://i.imgur.com/CKLwEin.png') no-repeat center center;
+      height: 650px;
+      background: url('MAPAMESA.png') no-repeat;
       background-size: cover;
+      border: 2px solid #aaa;
+      margin: 0 auto;
     }
     .mesa {
       position: absolute;
-      width: 40px;
-      height: 40px;
-      background: #fff868;
-      border: 2px solid #b38808;
-      border-radius: 50%;
-      color: #211f1a;
-      font-weight: bold;
+      width: 31px;
+      height: 28px;
+      border-radius: 9px;
       text-align: center;
-      line-height: 40px;
+      line-height: 26px;
+      font-weight: bold;
       cursor: pointer;
-      box-shadow: 1px 2px 7px #0003;
-      user-select: none;
-      transition: box-shadow 0.2s;
+      opacity: 0.85;
+      border: 2px solid #fff;
+      font-size: 18px;
+      box-shadow: 1px 2px 8px #0001;
+      transition: background 0.15s;
+      pointer-events: auto;
     }
-    .mesa.vendida {
-      background: #c83434;
-      color: #fff;
-      border: 2px solid #ad2222;
-    }
-    .mesa:hover {
-      box-shadow: 0 0 12px #222a;
-    }
-    .tooltip {
-      position: absolute;
-      padding: 2px 8px;
-      background: #222e;
-      color: #fff;
-      border-radius: 6px;
-      white-space: nowrap;
-      z-index: 2;
-      font-size: 12px;
-      left: 45px;
-      top: 0px;
+    .disponivel { background: #4caf50; color: #fff; }
+    .vendida { background: #e53935; color: #fff;}
+    .mesa:hover { transform: scale(1.15); z-index: 7; }
+    #lista-compradores {
+      width: 550px;
+      margin: 40px auto 0;
+      border: 1px solid #ddd;
+      padding: 15px 18px;
+      background: #fafafa;
+      font-family: Arial, sans-serif;
+      font-size: 1.1em;
       display: none;
-      pointer-events: none;
     }
-    #lista {
-      max-height: 540px;
-      overflow-y: auto;
-      border: 1px solid #8884;
-      background: #fff;
-      padding: 10px;
-      font-size: 15px;
-      margin: 8px 0;
-      width: 360px;
-      display: inline-block;
-      vertical-align: top;
-      border-radius: 7px;
+    #lista-compradores h2 {
+      margin: 0 0 8px 0;
+      font-size: 1.26em;
     }
-    #painel-admin {
-      margin: 16px 0;
+    #total-vendidas {
+      margin-bottom: 12px;
+      font-weight: bold;
+      color: #e53935;
+    }
+    #lista-compradores ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #lista-compradores li {
+      margin-bottom: 3px;
+    }
+    #admin-btns {
+      text-align: center;
+      margin-top: 30px;
+    }
+    #login-admin {
+      padding: 9px 15px;
+      font-size: 1em;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+      background: #eee;
+      cursor: pointer;
     }
     #sair-admin {
-      margin-left: 16px;
-    }
-    #admin-banner {
+      display: none;
+      padding: 7px 16px;
+      font-size: 1em;
+      border-radius: 4px;
+      background: #e53935;
       color: #fff;
-      background: #cb8a10;
-      padding: 6px 18px;
-      display: inline-block;
-      margin: 10px 0;
-      border-radius: 8px;
-      letter-spacing: 2px;
-      font-weight: bold;
-      font-size: 16px;
-      box-shadow: 1px 1px 6px #0002;
-    }
-    body {
-      font-family: Arial, sans-serif;
-    }
-    #painel-principal {
-      display: flex;
-      flex-direction: row;
-      gap: 30px;
+      border: none;
+      margin-left: 10px;
+      cursor: pointer;
     }
   </style>
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Festa Junina - Venda das Mesas</h2>
-  <div id="painel-admin">
-    <button id="entrar-admin">Entrar Modo Admin</button>
-    <button id="sair-admin" style="display:none;">Sair do Admin</button>
-    <span id="admin-banner" style="display:none;">MODO ADMINISTRADOR</span>
+  <div id="mapa"></div>
+  <div id="lista-compradores">
+    <h2>Mesas Vendidas</h2>
+    <div id="total-vendidas"></div>
+    <ul id="lista"></ul>
   </div>
-  <div id="painel-principal">
-    <div id="mapa"></div>
-    <div id="lista">
-      <b>Mesas Vendidas</b>
-      <ul id="compradores" style="padding-left: 18px"></ul>
-    </div>
+  <div id="admin-btns">
+    <button id="login-admin">Entrar como Admin</button>
+    <button id="sair-admin">Sair do modo Admin</button>
   </div>
-
   <script>
-    // --------- SENHA ADMIN AQUI --------
-    const ADMIN_SENHA = "festajununa2025";
-    let modoAdmin = false;
+    // CONFIGURAÇÃO FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyANwb3oRUFrXeX3y7V7eeqkt1KDJhQA91w",
+      authDomain: "festajunina-37b52.firebaseapp.com",
+      databaseURL: "https://festajunina-37b52-default-rtdb.firebaseio.com",
+      projectId: "festajunina-37b52",
+      storageBucket: "festajunina-37b52.appspot.com",
+      messagingSenderId: "941738281320",
+      appId: "1:941738281320:web:e19618323d9e12293e6edd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // --- Layout das mesas (só como exemplo; ajuste ao seu mapa se quiser) ---
-    const mesas = [
-      {n: 1, x: 68,  y:60},   {n: 2, x: 128, y:60},   {n: 3, x:188, y:60}, {n: 4, x:248, y:60},
-      {n: 5, x:328, y:60},   {n: 6, x:388, y:60},   {n: 7, x:448, y:60}, {n:8, x:508, y:60},
-      // ...adicione as mesas conforme seu layout!
-      {n: 9, x: 630, y: 110}, {n: 10, x: 680, y: 160},
-      {n: 11, x: 62,  y: 170}, {n: 12, x: 122, y: 170}, {n: 13, x:182, y:170}, // Etc!
-      {n: 14, x:242, y:170}, {n:15, x:302, y:170}, {n:16, x:362, y:170},
-      {n:17, x:422, y:170}, {n:18, x:482, y:170}, {n:19, x:542, y:170},
-      {n:20, x:602, y:170}
+    const ADMIN_SENHA = "festajunina2025"; // <- SENHA ATUALIZADA AQUI!
+    let adminAtivo = false;
+
+    // Lista de mesas padrão DO SEU LAYOUT!
+    const mesasDefault = [
+      [80, 60, 7, 'disponivel', ''],
+      [79, 60, 45, 'disponivel', ''],
+      [78, 60, 85, 'disponivel', ''],
+      [77, 130, 7, 'disponivel', '']
+      // ...adicione quantas quiser!
     ];
 
-    let dadosMesas = {}; // {numero: {vendida, comprador}}
+    let mesas = mesasDefault.map(line => [...line]); // deep copy
 
-    // SLUG mesa (por ex: 13 fica "mesa13") para usar como id no DOM
-    function slugMesa(n) { return "mesa" + n; }
+    // Função desenha todas as mesas conforme seu HTML/CSS
+    function renderMap() {
+      const mapaEl = document.getElementById('mapa');
+      mapaEl.innerHTML = '';
+      mesas.forEach((mesa, idx) => {
+        let [num, x, y, status, comprador] = mesa;
+        let div = document.createElement('div');
+        div.className = 'mesa ' + status;
+        div.textContent = num;
+        div.style.left = x + 'px';
+        div.style.top = y + 'px';
+        div.id = 'mesa-'+num;
 
-    function salva(mesan, obj) {
-      dadosMesas[mesan] = obj;
-      // No original só fica em ram. (Se tiver firebase, salve aqui!)
-    }
-
-    function carrega(mesan) {
-      return dadosMesas[mesan] || {vendida: false, comprador: ""};
-    }
-
-    function salvarEmLocalStorage() {
-      localStorage.setItem('dadosMesasJunina2025', JSON.stringify(dadosMesas));
-    }
-
-    function carregarDoLocalStorage() {
-      const d = localStorage.getItem('dadosMesasJunina2025');
-      if (d) dadosMesas = JSON.parse(d);
-    }
-
-    function desenhaMapa() {
-      const mapa = document.getElementById('mapa');
-      mapa.innerHTML = '';
-      mesas.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'mesa';
-        div.style.left = m.x+'px';
-        div.style.top = m.y+'px';
-        div.innerText = m.n;
-        div.id = slugMesa(m.n);
-        let dado = carrega(m.n);
-        if (dado.vendida) div.classList.add('vendida');
-        // Tooltip
-        let tt = document.createElement('div');
-        tt.className = "tooltip";
-        tt.id = "tt_"+slugMesa(m.n);
-        if(dado.vendida) tt.innerText = "Vendida para: " + dado.comprador;
-        else tt.innerText = "Disponível";
-        div.appendChild(tt);
-
-        // Interação
-        div.onmouseenter = () => { tt.style.display = "inline-block"; }
-        div.onmouseleave = () => { tt.style.display = "none"; }
-
-        div.onclick = () => {
-          if(!modoAdmin) return;
-          if(dado.vendida) {
-            // Desvender...
-            if(confirm(`Desmarcar mesa ${m.n} como vendida?`)) {
-              salva(m.n, {vendida: false, comprador: ""});
-              salvarEmLocalStorage();
-              desenhaMapa();
-              updateList();
+        div.onclick = function() {
+          if (!adminAtivo) return;
+          if (mesa[3] === 'disponivel') {
+            let nome = prompt(`Qual o nome do comprador da mesa ${num}?`);
+            if (nome && nome.trim()) {
+              mesa[3] = 'vendida';
+              mesa[4] = nome.trim();
+              salvarNoFirebase();
             }
-          } else {
-            let comprador = prompt(`Nome do comprador da mesa ${m.n}?`);
-            if(comprador && comprador.trim().length > 0) {
-              salva(m.n, {vendida: true, comprador: comprador.trim()});
-              salvarEmLocalStorage();
-              desenhaMapa();
-              updateList();
+          } else if (mesa[3] === 'vendida') {
+            if (confirm(`Deseja liberar a mesa ${num} (comprador: ${mesa[4]})?`)) {
+              mesa[3] = 'disponivel';
+              mesa[4] = '';
+              salvarNoFirebase();
             }
           }
-        };
-        mapa.appendChild(div);
+        }
+        mapaEl.appendChild(div);
       });
     }
-    // ---- Listagem lateral
+
+    // Atualiza lista lateral conforme seu layout
     function updateList() {
-      let compradores = [];
-      mesas.forEach(m => {
-        let d = carrega(m.n);
-        if (d.vendida && d.comprador)
-          compradores.push({n: m.n, nome: d.comprador});
-      });
-      compradores.sort((a,b) => a.n - b.n);
-      let ul = document.getElementById('compradores');
+      const ul = document.getElementById('lista');
+      const totalDiv = document.getElementById('total-vendidas');
       ul.innerHTML = '';
-      compradores.forEach(obj => {
+      const mesasVendidas = mesas
+        .filter(m => m[3] === 'vendida')
+        .sort((a, b) => a[0] - b[0]);
+      totalDiv.textContent = `Total de mesas vendidas: ${mesasVendidas.length}`;
+      mesasVendidas.forEach(mesa => {
         let li = document.createElement('li');
-        li.innerText = `Mesa ${obj.n}: ${obj.nome}`;
+        li.textContent = `Mesa ${mesa[0]} — ${mesa[4]}`;
         ul.appendChild(li);
       });
+      if (mesasVendidas.length === 0) {
+        let li = document.createElement('li');
+        li.textContent = '(Nenhuma mesa vendida ainda)';
+        ul.appendChild(li);
+      }
     }
-    // ------------ Admin
-    function setAdmin(valor) {
-      modoAdmin = valor;
-      document.getElementById('admin-banner').style.display = valor ? "inline-block" : "none";
-      document.getElementById('sair-admin').style.display = valor ? "inline-block" : "none";
-      document.getElementById('entrar-admin').style.display = valor ? "none" : "inline-block";
+
+    function setAdmin(ativo) {
+      adminAtivo = ativo;
+      document.getElementById('lista-compradores').style.display = ativo ? 'block' : 'none';
+      document.getElementById('sair-admin').style.display = ativo ? 'inline-block' : 'none';
+      document.getElementById('login-admin').style.display = ativo ? 'none' : 'inline-block';
+      // pointer-events: só admin mexe, resto só visualiza
+      document.querySelectorAll('.mesa').forEach(el => {
+        el.style.pointerEvents = ativo ? 'auto' : 'none';
+        el.style.opacity = ativo ? '0.85' : '1';
+      });
     }
-    document.getElementById('entrar-admin').onclick = function() {
-      let senha = prompt("Senha do administrador:");
-      if(senha === ADMIN_SENHA) {
+
+    // Login admin igualzinho!
+    document.getElementById('login-admin').onclick = function() {
+      const senha = prompt("Digite a senha de administrador:");
+      if (senha === ADMIN_SENHA) {
         setAdmin(true);
-        alert("Bem-vindo, admin!");
       } else {
         alert("Senha incorreta.");
       }
     }
-    document.getElementById('sair-admin').onclick = function() {
-      setAdmin(false);
+    document.getElementById('sair-admin').onclick = function() { setAdmin(false); }
+
+    // ======= Firebase PARTE =======
+
+    function salvarNoFirebase() {
+      db.ref('mesas').set(mesas);
+      // Campos são atualizados no evento 'on' abaixo
     }
 
-    // Carrega do localStorage antes de desenhar
-    carregarDoLocalStorage();
-    // No início, só visitantes podem ver o mapa
-    setAdmin(false);
-    desenhaMapa();
+    // Sempre sincroniza TUDO com o Firebase
+    db.ref('mesas').on('value', snap => {
+      if (snap.exists() && Array.isArray(snap.val())) {
+        mesas = snap.val();
+      } else {
+        // Se banco está vazio, carrega o padrão (PRIMEIRA VEZ apenas)
+        salvarNoFirebase();
+      }
+      renderMap();
+      updateList();
+      setAdmin(adminAtivo); // garante pointer-event
+    });
+
+    // Primeira renderização
+    renderMap();
     updateList();
+    setAdmin(false);
   </script>
 </body>
 </html>
