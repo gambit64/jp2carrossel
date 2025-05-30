@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapeando Mesas</title>
+  <style>
+    #mapa {
+      position: relative;
+      width: 950px;
+      height: 650px;
+      background: url('MAPAMESA.png') no-repeat;
+      background-size: cover;
+      border: 2px solid #aaa;
+      margin: 0 auto;
+    }
+    .mesa {
+      position: absolute;
+      width: 31px;
+      height: 28px;
+      border-radius: 9px;
+      text-align: center;
+      line-height: 26px;
+      font-weight: bold;
+      cursor: pointer;
+      opacity: 0.85;
+      border: 2px solid #fff;
+      font-size: 18px;
+      box-shadow: 1px 2px 8px #0001;
+      transition: background 0.15s;
+      pointer-events: auto;
+    }
+    .disponivel { background: #4caf50; color: #fff; }
+    .vendida { background: #e53935; color: #fff;}
+    .mesa:hover { transform: scale(1.15); z-index: 7; }
+    #lista-compradores {
+      width: 550px;
+      margin: 40px auto 0;
+      border: 1px solid #ddd;
+      padding: 15px 18px;
+      background: #fafafa;
+      font-family: Arial, sans-serif;
+      font-size: 1.1em;
+      display: none;
+    }
+    #lista-compradores h2 {
+      margin: 0 0 8px 0;
+      font-size: 1.26em;
+    }
+    #total-vendidas {
+      margin-bottom: 12px;
+      font-weight: bold;
+      color: #e53935;
+    }
+    #lista-compradores ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #lista-compradores li {
+      margin-bottom: 3px;
+    }
+    #admin-btns {
+      text-align: center;
+      margin-top: 30px;
+    }
+    #login-admin {
+      padding: 9px 15px;
+      font-size: 1em;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+      background: #eee;
+      cursor: pointer;
+    }
+    #sair-admin {
+      display: none;
+      padding: 7px 16px;
+      font-size: 1em;
+      border-radius: 4px;
+      background: #e53935;
+      color: #fff;
+      border: none;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="mapa"></div>
+  <div id="lista-compradores">
+    <h2>Mesas Vendidas</h2>
+    <div id="total-vendidas"></div>
+    <ul id="lista"></ul>
+  </div>
+  <div id="admin-btns">
+    <button id="login-admin">Entrar como Admin</button>
+    <button id="sair-admin">Sair do modo Admin</button>
+  </div>
+  <script>
+    const ADMIN_SENHA = "festajunina"; // troque por qualquer senha
+
+    let adminAtivo = false;
+
+    const mesas = [
+      [80, 60, 7, 'disponivel', ''],
+      [79, 60, 45, 'disponivel', ''],
+      [78, 60, 85, 'disponivel', ''],
+      [77, 130, 7, 'disponivel', ''],
+    ];
+
+    // Criar as mesas no mapa
+    mesas.forEach((mesa, idx) => {
+      let [num, x, y, status, comprador] = mesa;
+      let div = document.createElement('div');
+      div.className = 'mesa ' + status;
+      div.textContent = num;
+      div.style.left = x + 'px';
+      div.style.top = y + 'px';
+      div.id = 'mesa-'+num;
+
+      div.onclick = function() {
+        if (!adminAtivo) return; // só admin pode marcar/desmarcar mesas!
+        if (mesa[3] === 'disponivel') {
+          let nome = prompt(`Qual o nome do comprador da mesa ${num}?`);
+          if (nome && nome.trim()) {
+            mesa[3] = 'vendida';
+            mesa[4] = nome.trim();
+            div.classList.remove('disponivel');
+            div.classList.add('vendida');
+            updateList();
+          }
+        } else if (mesa[3] === 'vendida') {
+          if (confirm(`Deseja liberar novamente a mesa ${num} (comprador: ${mesa[4]})?`)) {
+            mesa[3] = 'disponivel';
+            mesa[4] = '';
+            div.classList.remove('vendida');
+            div.classList.add('disponivel');
+            updateList();
+          }
+        }
+      }
+      document.getElementById('mapa').appendChild(div);
+    });
+
+    function updateList() {
+      const ul = document.getElementById('lista');
+      const totalDiv = document.getElementById('total-vendidas');
+      ul.innerHTML = '';
+
+      // Ordena as mesas vendidas crescentemente
+      const mesasVendidas = mesas
+        .filter(m => m[3] === 'vendida')
+        .sort((a, b) => a[0] - b[0]);
+
+      totalDiv.textContent = `Total de mesas vendidas: ${mesasVendidas.length}`;
+
+      mesasVendidas.forEach(mesa => {
+        let li = document.createElement('li');
+        li.textContent = `Mesa ${mesa[0]} — ${mesa[4]}`;
+        ul.appendChild(li);
+      });
+      if (mesasVendidas.length === 0) {
+        let li = document.createElement('li');
+        li.textContent = '(Nenhuma mesa vendida ainda)';
+        ul.appendChild(li);
+      }
+    }
+
+    // Para alternar modo admin
+    function setAdmin(ativo) {
+      adminAtivo = ativo;
+      document.getElementById('lista-compradores').style.display = ativo ? 'block' : 'none';
+      document.getElementById('sair-admin').style.display = ativo ? 'inline-block' : 'none';
+      document.getElementById('login-admin').style.display = ativo ? 'none' : 'inline-block';
+
+      // Visual feedback: cursor pointer para admin, default para visitante
+      document.querySelectorAll('.mesa').forEach(el => {
+        el.style.pointerEvents = ativo ? 'auto' : 'none';
+        el.style.opacity = ativo ? '0.85' : '1';
+      });
+    }
+
+    // Botão para login admin
+    document.getElementById('login-admin').onclick = function() {
+      const senha = prompt("Digite a senha de administrador:");
+      if (senha === ADMIN_SENHA) {
+        setAdmin(true);
+      } else {
+        alert("Senha incorreta.");
+      }
+    }
+    document.getElementById('sair-admin').onclick = function() {
+      setAdmin(false);
+    }
+
+    // No início, só visitantes podem ver o mapa
+    setAdmin(false);
+    updateList();
+  </script>
+</body>
+</html>
