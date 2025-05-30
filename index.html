@@ -83,6 +83,9 @@
       cursor: pointer;
     }
   </style>
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
   <div id="mapa"></div>
@@ -96,63 +99,76 @@
     <button id="sair-admin">Sair do modo Admin</button>
   </div>
   <script>
-    const ADMIN_SENHA = "festajunina"; // troque por qualquer senha
+    // CONFIGURAÇÃO FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyANwb3oRUFrXeX3y7V7eeqkt1KDJhQA91w",
+      authDomain: "festajunina-37b52.firebaseapp.com",
+      databaseURL: "https://festajunina-37b52-default-rtdb.firebaseio.com",
+      projectId: "festajunina-37b52",
+      storageBucket: "festajunina-37b52.appspot.com",
+      messagingSenderId: "941738281320",
+      appId: "1:941738281320:web:e19618323d9e12293e6edd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
+    const ADMIN_SENHA = ""; // Preencha depois se quiser senha
     let adminAtivo = false;
 
-    const mesas = [
+    // Lista de mesas padrão DO SEU LAYOUT!
+    const mesasDefault = [
       [80, 60, 7, 'disponivel', ''],
       [79, 60, 45, 'disponivel', ''],
       [78, 60, 85, 'disponivel', ''],
-      [77, 130, 7, 'disponivel', ''],
+      [77, 130, 7, 'disponivel', '']
+      // ...adicione quantas quiser!
     ];
 
-    // Criar as mesas no mapa
-    mesas.forEach((mesa, idx) => {
-      let [num, x, y, status, comprador] = mesa;
-      let div = document.createElement('div');
-      div.className = 'mesa ' + status;
-      div.textContent = num;
-      div.style.left = x + 'px';
-      div.style.top = y + 'px';
-      div.id = 'mesa-'+num;
+    let mesas = mesasDefault.map(line => [...line]); // deep copy
 
-      div.onclick = function() {
-        if (!adminAtivo) return; // só admin pode marcar/desmarcar mesas!
-        if (mesa[3] === 'disponivel') {
-          let nome = prompt(`Qual o nome do comprador da mesa ${num}?`);
-          if (nome && nome.trim()) {
-            mesa[3] = 'vendida';
-            mesa[4] = nome.trim();
-            div.classList.remove('disponivel');
-            div.classList.add('vendida');
-            updateList();
-          }
-        } else if (mesa[3] === 'vendida') {
-          if (confirm(`Deseja liberar novamente a mesa ${num} (comprador: ${mesa[4]})?`)) {
-            mesa[3] = 'disponivel';
-            mesa[4] = '';
-            div.classList.remove('vendida');
-            div.classList.add('disponivel');
-            updateList();
+    // Função desenha todas as mesas conforme seu HTML/CSS
+    function renderMap() {
+      const mapaEl = document.getElementById('mapa');
+      mapaEl.innerHTML = '';
+      mesas.forEach((mesa, idx) => {
+        let [num, x, y, status, comprador] = mesa;
+        let div = document.createElement('div');
+        div.className = 'mesa ' + status;
+        div.textContent = num;
+        div.style.left = x + 'px';
+        div.style.top = y + 'px';
+        div.id = 'mesa-'+num;
+
+        div.onclick = function() {
+          if (!adminAtivo) return;
+          if (mesa[3] === 'disponivel') {
+            let nome = prompt(`Qual o nome do comprador da mesa ${num}?`);
+            if (nome && nome.trim()) {
+              mesa[3] = 'vendida';
+              mesa[4] = nome.trim();
+              salvarNoFirebase();
+            }
+          } else if (mesa[3] === 'vendida') {
+            if (confirm(`Deseja liberar a mesa ${num} (comprador: ${mesa[4]})?`)) {
+              mesa[3] = 'disponivel';
+              mesa[4] = '';
+              salvarNoFirebase();
+            }
           }
         }
-      }
-      document.getElementById('mapa').appendChild(div);
-    });
+        mapaEl.appendChild(div);
+      });
+    }
 
+    // Atualiza lista lateral conforme seu layout
     function updateList() {
       const ul = document.getElementById('lista');
       const totalDiv = document.getElementById('total-vendidas');
       ul.innerHTML = '';
-
-      // Ordena as mesas vendidas crescentemente
       const mesasVendidas = mesas
         .filter(m => m[3] === 'vendida')
         .sort((a, b) => a[0] - b[0]);
-
       totalDiv.textContent = `Total de mesas vendidas: ${mesasVendidas.length}`;
-
       mesasVendidas.forEach(mesa => {
         let li = document.createElement('li');
         li.textContent = `Mesa ${mesa[0]} — ${mesa[4]}`;
@@ -165,21 +181,19 @@
       }
     }
 
-    // Para alternar modo admin
     function setAdmin(ativo) {
       adminAtivo = ativo;
       document.getElementById('lista-compradores').style.display = ativo ? 'block' : 'none';
       document.getElementById('sair-admin').style.display = ativo ? 'inline-block' : 'none';
       document.getElementById('login-admin').style.display = ativo ? 'none' : 'inline-block';
-
-      // Visual feedback: cursor pointer para admin, default para visitante
+      // pointer-events: só admin mexe, resto só visualiza
       document.querySelectorAll('.mesa').forEach(el => {
         el.style.pointerEvents = ativo ? 'auto' : 'none';
         el.style.opacity = ativo ? '0.85' : '1';
       });
     }
 
-    // Botão para login admin
+    // Login admin igualzinho!
     document.getElementById('login-admin').onclick = function() {
       const senha = prompt("Digite a senha de administrador:");
       if (senha === ADMIN_SENHA) {
@@ -188,13 +202,32 @@
         alert("Senha incorreta.");
       }
     }
-    document.getElementById('sair-admin').onclick = function() {
-      setAdmin(false);
+    document.getElementById('sair-admin').onclick = function() { setAdmin(false); }
+
+    // ======= Firebase PARTE =======
+
+    function salvarNoFirebase() {
+      db.ref('mesas').set(mesas);
+      // Campos são atualizados no evento 'on' abaixo
     }
 
-    // No início, só visitantes podem ver o mapa
-    setAdmin(false);
+    // Sempre sincroniza TUDO com o Firebase
+    db.ref('mesas').on('value', snap => {
+      if (snap.exists() && Array.isArray(snap.val())) {
+        mesas = snap.val();
+      } else {
+        // Se banco está vazio, carrega o padrão (PRIMEIRA VEZ apenas)
+        salvarNoFirebase();
+      }
+      renderMap();
+      updateList();
+      setAdmin(adminAtivo); // garante pointer-event
+    });
+
+    // Primeira renderização
+    renderMap();
     updateList();
+    setAdmin(false);
   </script>
 </body>
 </html>
